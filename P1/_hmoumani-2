@@ -1,0 +1,7 @@
+# Use the latest FRRouting (FRR) image as the base
+FROM frrouting/frr:latest
+
+# Enable BGP, OSPF, and IS-IS daemons in the FRR configuration file
+RUN sed -i 's/bgpd=no/bgpd=yes/' /etc/frr/daemons && \
+    sed -i 's/ospfd=no/ospfd=yes/' /etc/frr/daemons && \
+    sed -i 's/isisd=no/isisd=yes/' /etc/frr/daemons
