@@ -6,22 +6,27 @@
 # eth1: 10.1.1.5/30 (to Leaf 2 / _mchegri-3)
 # eth2: 10.1.1.9/30 (to Leaf 3 / _mchegri-4)
 
+# Enable IPv4 packet forwarding for underlay transit between leaves
+sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
+
 # 1. Configure Linux network interfaces
-ip addr add 1.1.1.1/32 dev lo
+ip addr replace 1.1.1.1/32 dev lo
 ip link set dev lo up
 
-ip addr add 10.1.1.1/30 dev eth0
+ip addr replace 10.1.1.1/30 dev eth0
 ip link set dev eth0 up
 
-ip addr add 10.1.1.5/30 dev eth1
+ip addr replace 10.1.1.5/30 dev eth1
 ip link set dev eth1 up
 
-ip addr add 10.1.1.9/30 dev eth2
+ip addr replace 10.1.1.9/30 dev eth2
 ip link set dev eth2 up
 
 # 2. Configure FRR (OSPF + BGP Route Reflector for EVPN)
 vtysh << 'EOF'
 configure terminal
+!
+ip forwarding
 !
 router ospf
  ospf router-id 1.1.1.1

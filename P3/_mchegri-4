@@ -5,11 +5,15 @@
 # eth2: 10.1.1.10/30 (to Spine / _mchegri-1 eth2)
 # eth0: connected to host_mchegri-3
 
+# Clean up any existing vxlan/bridge if re-running
+ip link del dev vxlan10 2>/dev/null || true
+ip link del dev br0 2>/dev/null || true
+
 # 1. Configure Linux network interfaces
-ip addr add 1.1.1.4/32 dev lo
+ip addr replace 1.1.1.4/32 dev lo
 ip link set dev lo up
 
-ip addr add 10.1.1.10/30 dev eth2
+ip addr replace 10.1.1.10/30 dev eth2
 ip link set dev eth2 up
 
 # 2. Setup VXLAN 10 and Bridge br0 (BGP-EVPN control plane learning)
