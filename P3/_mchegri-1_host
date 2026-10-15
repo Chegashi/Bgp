@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Host 1 Configuration (P3)
+# Connected to Router 2 (_mchegri-2) on eth1
+
+ip addr add 20.1.1.1/24 dev eth1
+ip link set dev eth1 up

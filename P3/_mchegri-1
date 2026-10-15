@@ -1,0 +1,49 @@
+#!/bin/sh
+
+# Router 1 - Spine / Route Reflector (RR)
+# Loopback: 1.1.1.1/32
+# eth0: 10.1.1.1/30 (to Leaf 1 / _mchegri-2)
+# eth1: 10.1.1.5/30 (to Leaf 2 / _mchegri-3)
+# eth2: 10.1.1.9/30 (to Leaf 3 / _mchegri-4)
+
+# 1. Configure Linux network interfaces
+ip addr add 1.1.1.1/32 dev lo
+ip link set dev lo up
+
+ip addr add 10.1.1.1/30 dev eth0
+ip link set dev eth0 up
+
+ip addr add 10.1.1.5/30 dev eth1
+ip link set dev eth1 up
+
+ip addr add 10.1.1.9/30 dev eth2
+ip link set dev eth2 up
+
+# 2. Configure FRR (OSPF + BGP Route Reflector for EVPN)
+vtysh << 'EOF'
+configure terminal
+!
+router ospf
+ ospf router-id 1.1.1.1
+ network 1.1.1.1/32 area 0
+ network 10.1.1.0/30 area 0
+ network 10.1.1.4/30 area 0
+ network 10.1.1.8/30 area 0
+!
+router bgp 1
+ bgp router-id 1.1.1.1
+ neighbor ibgp peer-group
+ neighbor ibgp remote-as 1
+ neighbor ibgp update-source lo
+ ! dynamic neighbors: any leaf loopback in 1.1.1.0/29 may open a session,
+ ! no leaf is declared one by one on the RR
+ bgp listen range 1.1.1.0/29 peer-group ibgp
+ !
+ address-family l2vpn evpn
+  neighbor ibgp activate
+  neighbor ibgp route-reflector-client
+ exit-address-family
+!
+end
+write memory
+EOF
