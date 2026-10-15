@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Host 2 Configuration
+# Connected to Router 2 on eth1
+
+ip addr add 30.1.1.2/24 dev eth1
+ip link set dev eth1 up
