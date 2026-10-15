@@ -1,0 +1,9 @@
+# Use Alpine Linux as a minimal, lightweight base
+FROM alpine:3
+
+# Install busybox and essential networking tools (iproute2 for 'ip', iputils for 'ping', net-tools for 'ifconfig')
+RUN apk update && apk add --no-cache \
+    busybox \
+    iproute2 \
+    net-tools \
+    iputils
