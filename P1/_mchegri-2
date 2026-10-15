@@ -1,0 +1,21 @@
+# Router image: FRRouting (maintained fork of quagga) on Alpine Linux.
+# zebra manages the kernel routing table; bgpd, ospfd and isisd run on top of it.
+# The official image already ships busybox, iproute2 and bridge-utils (brctl).
+FROM quay.io/frrouting/frr:9.1.3
+
+# tcpdump: to inspect VXLAN / OSPF / BGP traffic from the router itself
+RUN apk add --no-cache tcpdump
+
+# Enable the routing daemons required by the subject (zebra is always started):
+# - bgpd:  Border Gateway Protocol (P3: iBGP EVPN)
+# - ospfd: Open Shortest Path First (P3: underlay)
+# - isisd: IS-IS routing engine
+RUN sed -i -e 's/^bgpd=no/bgpd=yes/' \
+           -e 's/^ospfd=no/ospfd=yes/' \
+           -e 's/^isisd=no/isisd=yes/' /etc/frr/daemons \
+ && touch /etc/frr/vtysh.conf
+
+# No IP address is configured by default.
+# The inherited entrypoint (/sbin/tini -- /usr/lib/frr/docker-start) keeps
+# watchfrr in the foreground, which starts and supervises zebra + the daemons,
+# so the container stays alive in GNS3.

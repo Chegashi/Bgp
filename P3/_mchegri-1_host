@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Host 1 Configuration (P3)
+# Connected to Leaf 1 (_mchegri-2)
+# Uses eth1 if available (matching the subject diagram), falls back to eth0
+
+IFACE="eth0"
+[ -d "/sys/class/net/eth1" ] && IFACE="eth1"
+
+ip addr replace 20.1.1.1/24 dev "$IFACE"
+ip link set dev "$IFACE" up
+

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Host 2 Configuration (P2)
+# Underlay: Connected to Router 2 (routeur_mchegri-2)
+# Uses eth1 if available (matching the subject diagram), falls back to eth0
+
+IFACE="eth0"
+[ -d "/sys/class/net/eth1" ] && IFACE="eth1"
+
+ip addr replace 30.1.1.2/24 dev "$IFACE"
+ip link set dev "$IFACE" up
+
