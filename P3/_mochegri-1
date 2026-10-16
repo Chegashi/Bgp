@@ -2,9 +2,9 @@
 
 # Router 1 - Spine / Route Reflector (RR)
 # Loopback: 1.1.1.1/32
-# eth0: 10.1.1.1/30 (to Leaf 1 / _mchegri-2)
-# eth1: 10.1.1.5/30 (to Leaf 2 / _mchegri-3)
-# eth2: 10.1.1.9/30 (to Leaf 3 / _mchegri-4)
+# eth0: 10.1.1.1/30 (to Leaf 1 / _mochegri-2)
+# eth1: 10.1.1.5/30 (to Leaf 2 / _mochegri-3)
+# eth2: 10.1.1.9/30 (to Leaf 3 / _mochegri-4)
 
 # Enable IPv4 packet forwarding for underlay transit between leaves
 sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true

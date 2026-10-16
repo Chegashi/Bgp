@@ -2,7 +2,7 @@
 
 A comprehensive implementation and theoretical guide for the **42 Network BADASS** project. This project explores modern data center network architecture by building simulated network topologies in **GNS3** (Graphical Network Simulator 3, an application where you draw a network and run virtual devices in it) with **Docker** containers (isolated programs that share the host's Linux kernel, much lighter than virtual machines), progressing from basic image creation to **VXLAN** tunneling and **BGP EVPN** control-plane fabric automation. Each of these terms is explained in the sections below.
 
-Login used across all devices, scripts, and images: **`mchegri`**.
+Login used across all devices, scripts, and images: **`mochegri`**.
 
 > **How to read this manual:** every technical term is defined in plain words the first time it appears in the text. If you jump into the middle and meet an unknown word, look it up in the [Glossary](#11-glossary).
 
@@ -24,8 +24,8 @@ Login used across all devices, scripts, and images: **`mchegri`**.
   - [2.5 Route Reflection (RFC 4456) \& Dynamic Listen Peering](#25-route-reflection-rfc-4456--dynamic-listen-peering)
   - [2.6 IS-IS (Intermediate System to Intermediate System)](#26-is-is-intermediate-system-to-intermediate-system)
 - [3. Part 1: Base Docker Images \& GNS3 Integration](#3-part-1-base-docker-images--gns3-integration)
-  - [3.1 Host Image: `_mchegri-1_host`](#31-host-image-_mchegri-1_host)
-  - [3.2 Router Image: `_mchegri-2`](#32-router-image-_mchegri-2)
+  - [3.1 Host Image: `_mochegri-1_host`](#31-host-image-_mochegri-1_host)
+  - [3.2 Router Image: `_mochegri-2`](#32-router-image-_mochegri-2)
     - [Packet Routing Software: zebra, Quagga \& FRR](#packet-routing-software-zebra-quagga--frr)
   - [3.3 Build Automation: `build.sh`](#33-build-automation-buildsh)
   - [3.4 GNS3 Verification](#34-gns3-verification)
@@ -40,8 +40,8 @@ Login used across all devices, scripts, and images: **`mchegri`**.
   - [4.8 Testing Procedure \& Verification](#48-testing-procedure--verification)
 - [5. Part 3: Clos Spine-Leaf Fabric with BGP EVPN](#5-part-3-clos-spine-leaf-fabric-with-bgp-evpn)
   - [5.1 Clos Spine-Leaf Architecture \& Interface Mapping](#51-clos-spine-leaf-architecture--interface-mapping)
-  - [5.2 Spine / Route Reflector Configuration: `_mchegri-1`](#52-spine--route-reflector-configuration-_mchegri-1)
-  - [5.3 Leaf / VTEP Configurations: `_mchegri-2`, `_mchegri-3`, `_mchegri-4`](#53-leaf--vtep-configurations-_mchegri-2-_mchegri-3-_mchegri-4)
+  - [5.2 Spine / Route Reflector Configuration: `_mochegri-1`](#52-spine--route-reflector-configuration-_mochegri-1)
+  - [5.3 Leaf / VTEP Configurations: `_mochegri-2`, `_mochegri-3`, `_mochegri-4`](#53-leaf--vtep-configurations-_mochegri-2-_mochegri-3-_mochegri-4)
   - [5.4 Host Configurations in P3](#54-host-configurations-in-p3)
   - [5.5 EVPN Route Lifecycle (Type 3 vs Type 2)](#55-evpn-route-lifecycle-type-3-vs-type-2)
   - [5.6 End-to-End Packet Walk: Host 1 to Host 2 Across the Fabric](#56-end-to-end-packet-walk-host-1-to-host-2-across-the-fabric)
@@ -187,26 +187,26 @@ bgp/
 ├── README.md               # Single manual: theory, configs, GNS3 guide, testing & defense notes
 ├── en.subject.pdf          # Official 42 project specification
 ├── P1/
-│   ├── _mchegri-1_host     # Dockerfile: Host image (Alpine + BusyBox + iproute2 + ping)
-│   ├── _mchegri-2          # Dockerfile: Router image (FRRouting 9.1.3 + daemons + tcpdump)
-│   ├── build.sh            # Build script tagging host_mchegri and routeur_mchegri
+│   ├── _mochegri-1_host    # Dockerfile: Host image (Alpine + BusyBox + iproute2 + ping)
+│   ├── _mochegri-2         # Dockerfile: Router image (FRRouting 9.1.3 + daemons + tcpdump)
+│   ├── build.sh            # Build script tagging host_mochegri and routeur_mochegri
 │   └── P1.gns3project      # GNS3 portable project export (zip)
 ├── P2/
-│   ├── _mchegri-1_s        # Router 1: VXLAN static unicast configuration script
-│   ├── _mchegri-2_s        # Router 2: VXLAN static unicast configuration script
-│   ├── _mchegri-1_g        # Router 1: VXLAN multicast group configuration script
-│   ├── _mchegri-2_g        # Router 2: VXLAN multicast group configuration script
-│   ├── _mchegri-1_host     # Host 1: IP configuration script (30.1.1.1/24)
-│   ├── _mchegri-2_host     # Host 2: IP configuration script (30.1.1.2/24)
+│   ├── _mochegri-1_s       # Router 1: VXLAN static unicast configuration script
+│   ├── _mochegri-2_s       # Router 2: VXLAN static unicast configuration script
+│   ├── _mochegri-1_g       # Router 1: VXLAN multicast group configuration script
+│   ├── _mochegri-2_g       # Router 2: VXLAN multicast group configuration script
+│   ├── _mochegri-1_host    # Host 1: IP configuration script (30.1.1.1/24)
+│   ├── _mochegri-2_host    # Host 2: IP configuration script (30.1.1.2/24)
 │   └── P2.gns3project      # GNS3 portable project export (zip)
 └── P3/
-    ├── _mchegri-1          # Spine Router: OSPF Area 0 + BGP Route Reflector for EVPN
-    ├── _mchegri-2          # Leaf 1 Router: VTEP (lo: 1.1.1.2) + OSPF + iBGP EVPN
-    ├── _mchegri-3          # Leaf 2 Router: VTEP (lo: 1.1.1.3) + OSPF + iBGP EVPN
-    ├── _mchegri-4          # Leaf 3 Router: VTEP (lo: 1.1.1.4) + OSPF + iBGP EVPN
-    ├── _mchegri-1_host     # Host 1: IP configuration script (20.1.1.1/24)
-    ├── _mchegri-2_host     # Host 2: IP configuration script (20.1.1.2/24)
-    ├── _mchegri-3_host     # Host 3: IP configuration script (20.1.1.3/24)
+    ├── _mochegri-1         # Spine Router: OSPF Area 0 + BGP Route Reflector for EVPN
+    ├── _mochegri-2         # Leaf 1 Router: VTEP (lo: 1.1.1.2) + OSPF + iBGP EVPN
+    ├── _mochegri-3         # Leaf 2 Router: VTEP (lo: 1.1.1.3) + OSPF + iBGP EVPN
+    ├── _mochegri-4         # Leaf 3 Router: VTEP (lo: 1.1.1.4) + OSPF + iBGP EVPN
+    ├── _mochegri-1_host    # Host 1: IP configuration script (20.1.1.1/24)
+    ├── _mochegri-2_host    # Host 2: IP configuration script (20.1.1.2/24)
+    ├── _mochegri-3_host    # Host 3: IP configuration script (20.1.1.3/24)
     └── P3.gns3project      # GNS3 portable project export (zip)
 ```
 
@@ -311,9 +311,9 @@ IS-IS ([RFC 1195](https://datatracker.ietf.org/doc/html/rfc1195)) is a link-stat
 
 Part 1 requires creating two custom Docker images that serve as generic building blocks throughout P1, P2, and P3.
 
-### 3.1 Host Image: `_mchegri-1_host`
+### 3.1 Host Image: `_mochegri-1_host`
 
-File: [P1/_mchegri-1_host](P1/_mchegri-1_host)
+File: [P1/_mochegri-1_host](P1/_mochegri-1_host)
 
 ```dockerfile
 # Use Alpine Linux as a minimal, lightweight base
@@ -352,9 +352,9 @@ RUN apk update && apk add --no-cache \
   `apk add --no-cache` already fetches a fresh index by itself, so the `apk update` before it downloads the index a second time: redundant but harmless.
 - **Subject Constraint**: No IP address is configured inside the image.
 
-### 3.2 Router Image: `_mchegri-2`
+### 3.2 Router Image: `_mochegri-2`
 
-File: [P1/_mchegri-2](P1/_mchegri-2)
+File: [P1/_mochegri-2](P1/_mochegri-2)
 
 ```dockerfile
 # Router image: FRRouting (maintained fork of quagga) on Alpine Linux.
@@ -434,12 +434,12 @@ File: [P1/build.sh](P1/build.sh)
 #!/bin/sh
 # Build the two images used in GNS3 for P1, P2 and P3, then add them in
 # GNS3: Edit > Preferences > Docker containers > New
-#   - host_mchegri    (console: telnet, 2 network adapters recommended for eth0/eth1)
-#   - routeur_mchegri (console: telnet, 4 network adapters for eth0-eth3)
+#   - host_mochegri    (console: telnet, 2 network adapters recommended for eth0/eth1)
+#   - routeur_mochegri (console: telnet, 4 network adapters for eth0-eth3)
 set -e
 cd "$(dirname "$0")"
-docker build -t host_mchegri    -f _mchegri-1_host .
-docker build -t routeur_mchegri -f _mchegri-2 .
+docker build -t host_mochegri    -f _mochegri-1_host .
+docker build -t routeur_mochegri -f _mochegri-2 .
 ```
 
 Run this script inside your VM terminal:
@@ -447,11 +447,11 @@ Run this script inside your VM terminal:
 sh P1/build.sh
 ```
 
-It builds and tags the two local images used by every GNS3 template: `host_mchegri:latest` and `routeur_mchegri:latest`.
+It builds and tags the two local images used by every GNS3 template: `host_mochegri:latest` and `routeur_mochegri:latest`.
 
 ### 3.4 GNS3 Verification
 
-Connect `host-mchegri-1` to `routeur-mchegri` in GNS3. Open the router terminal and run:
+Connect `host-mochegri-1` to `routeur-mochegri` in GNS3. Open the router terminal and run:
 
 ```sh
 # 1. Verify all required daemons are running
@@ -472,7 +472,7 @@ ip addr
 In Part 2, two hosts on subnet `30.1.1.0/24` communicate across a Layer 3 underlay (`10.1.1.0/24`) using a VXLAN tunnel (`vxlan10`) bound to a Linux bridge (`br0`).
 
 ```text
-host-mchegri-1                   routeur-mchegri-1        Switch_mchegri        routeur-mchegri-2                   host-mchegri-2
+host-mochegri-1                   routeur-mochegri-1        Switch_mochegri        routeur-mochegri-2                   host-mochegri-2
 ┌──────────────────────┐        ┌──────────────────┐    ┌─────────────────┐    ┌──────────────────┐        ┌──────────────────────┐
 │ IP: 30.1.1.1/24      │        │ br0 (eth1+vxlan) │    │  Standard GNS3  │    │ br0 (eth1+vxlan) │        │ IP: 30.1.1.2/24      │
 │ Port: eth1 or eth0   ├────────┤ eth1        eth0 ├────┤ e0           e1 ├────┤ eth0        eth1 ├────────┤ Port: eth1 or eth0   │
@@ -487,9 +487,9 @@ host-mchegri-1                   routeur-mchegri-1        Switch_mchegri        
 
 ### 4.3 Static Unicast Mode (`_s`)
 
-Files: [P2/_mchegri-1_s](P2/_mchegri-1_s) and [P2/_mchegri-2_s](P2/_mchegri-2_s)
+Files: [P2/_mochegri-1_s](P2/_mochegri-1_s) and [P2/_mochegri-2_s](P2/_mochegri-2_s)
 
-On **Router 1** (`_mchegri-1_s`):
+On **Router 1** (`_mochegri-1_s`):
 ```sh
 #!/bin/sh
 
@@ -519,9 +519,9 @@ ip link set dev vxlan10 master br0
 
 ### 4.4 Dynamic Multicast Mode (`_g`)
 
-Files: [P2/_mchegri-1_g](P2/_mchegri-1_g) and [P2/_mchegri-2_g](P2/_mchegri-2_g)
+Files: [P2/_mochegri-1_g](P2/_mochegri-1_g) and [P2/_mochegri-2_g](P2/_mochegri-2_g)
 
-On **Router 1** (`_mchegri-1_g`):
+On **Router 1** (`_mochegri-1_g`):
 ```sh
 #!/bin/sh
 
@@ -550,7 +550,7 @@ ip link set dev vxlan10 master br0
 
 ### 4.5 Host Configuration & Resilient Interface Detection
 
-Files: [P2/_mchegri-1_host](P2/_mchegri-1_host) and [P2/_mchegri-2_host](P2/_mchegri-2_host)
+Files: [P2/_mochegri-1_host](P2/_mochegri-1_host) and [P2/_mochegri-2_host](P2/_mochegri-2_host)
 
 ```sh
 #!/bin/sh
@@ -589,7 +589,7 @@ Step 6: Host 2 receives ARP Request and replies with unicast ARP Reply.
 
 ### 4.7 Wireshark Capture Analysis
 
-Start Wireshark on the link between `routeur-mchegri-1` and `Switch_mchegri`:
+Start Wireshark on the link between `routeur-mochegri-1` and `Switch_mochegri`:
 - Filter: `udp.port == 4789` or `vxlan`
 - In static mode (`_s`), you will observe outer IP packets addressed from `10.1.1.1` to `10.1.1.2`.
 - In dynamic multicast mode (`_g`), you will observe the initial ARP request addressed to `239.1.1.1`, followed by unicast ICMP packets (`10.1.1.1` <-> `10.1.1.2`).
@@ -600,12 +600,12 @@ Start Wireshark on the link between `routeur-mchegri-1` and `Switch_mchegri`:
 All router scripts delete `vxlan10` and `br0` before re-creating them, so you can switch from static to multicast mode by just running the other script. The host scripts only need to run once.
 
 **Step 1: Static mode**
-1. Run `_mchegri-1_s` on Router 1 and `_mchegri-2_s` on Router 2.
-2. Run `_mchegri-1_host` on Host 1 and `_mchegri-2_host` on Host 2.
+1. Run `_mochegri-1_s` on Router 1 and `_mochegri-2_s` on Router 2.
+2. Run `_mochegri-1_host` on Host 1 and `_mochegri-2_host` on Host 2.
 3. From Host 1: `ping -c 3 30.1.1.2`
 
 **Step 2: Multicast mode**
-1. Run `_mchegri-1_g` on Router 1 and `_mchegri-2_g` on Router 2.
+1. Run `_mochegri-1_g` on Router 1 and `_mochegri-2_g` on Router 2.
 2. From Host 1: `ping -c 3 30.1.1.2`
 
 **On the routers:**
@@ -626,19 +626,19 @@ Part 3 implements a modern two-tier Clos data center fabric:
 
 ```text
                               ┌─────────────────────────────┐
-                              │ _mchegri-1  SPINE / RR      │
+                              │ mochegri-1  SPINE / RR      │
                               │ lo: 1.1.1.1/32  (AS 1)      │
                               │ eth0 .1  eth1 .5  eth2 .9   │
                               └──┬──────────┬──────────┬────┘
                     10.1.1.0/30  │  10.1.1.4/30        │  10.1.1.8/30
                      eth0 .2     │   eth1 .6           │   eth2 .10
           ┌────────────────────┐ │ ┌────────────────────┐ ┌────────────────────┐
-          │ _mchegri-2 LEAF 1  ├─┘ │ _mchegri-3 LEAF 2  │ │ _mchegri-4 LEAF 3  │
+          │ mochegri-2 LEAF 1  ├─┘ │ mochegri-3 LEAF 2  │ │ mochegri-4 LEAF 3  │
           │ lo: 1.1.1.2/32     │   │ lo: 1.1.1.3/32     │ │ lo: 1.1.1.4/32     │
           │ br0 = eth1+vxlan10 │   │ br0 = eth0+vxlan10 │ │ br0 = eth0+vxlan10 │
           └─────────┬──────────┘   └─────────┬──────────┘ └─────────┬──────────┘
                   eth1                      eth0                   eth0
-          host-mchegri-1             host-mchegri-2          host-mchegri-3
+          host-mochegri-1             host-mochegri-2          host-mochegri-3
            20.1.1.1/24                20.1.1.2/24             20.1.1.3/24
 ```
 
@@ -652,29 +652,29 @@ The fabric has three layers:
 
 #### Precise Port Cabling Mapping
 
-To match the official subject diagrams precisely, wire the devices as follows. The GNS3 node `mchegri-N` is configured with the script `P3/_mchegri-N`:
+To match the official subject diagrams precisely, wire the devices as follows. The GNS3 node `mochegri-N` is configured with the script `P3/_mochegri-N`:
 
 | Device | Node Name | Interface | Connected To Device | Remote Port | Subnet / Role |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Spine** | `mchegri-1` | `eth0` | `mchegri-2` (Leaf 1) | `eth0` | `10.1.1.0/30` (`.1` / `.2`) |
-| **Spine** | `mchegri-1` | `eth1` | `mchegri-3` (Leaf 2) | `eth1` | `10.1.1.4/30` (`.5` / `.6`) |
-| **Spine** | `mchegri-1` | `eth2` | `mchegri-4` (Leaf 3) | `eth2` | `10.1.1.8/30` (`.9` / `.10`) |
-| **Leaf 1** | `mchegri-2` | `eth1` | `host-mchegri-1` | `eth1` (or `eth0`) | Bridge `br0` (Overlay `20.1.1.1`) |
-| **Leaf 2** | `mchegri-3` | `eth0` | `host-mchegri-2` | `eth0` | Bridge `br0` (Overlay `20.1.1.2`) |
-| **Leaf 3** | `mchegri-4` | `eth0` | `host-mchegri-3` | `eth0` | Bridge `br0` (Overlay `20.1.1.3`) |
+| **Spine** | `mochegri-1` | `eth0` | `mochegri-2` (Leaf 1) | `eth0` | `10.1.1.0/30` (`.1` / `.2`) |
+| **Spine** | `mochegri-1` | `eth1` | `mochegri-3` (Leaf 2) | `eth1` | `10.1.1.4/30` (`.5` / `.6`) |
+| **Spine** | `mochegri-1` | `eth2` | `mochegri-4` (Leaf 3) | `eth2` | `10.1.1.8/30` (`.9` / `.10`) |
+| **Leaf 1** | `mochegri-2` | `eth1` | `host-mochegri-1` | `eth1` (or `eth0`) | Bridge `br0` (Overlay `20.1.1.1`) |
+| **Leaf 2** | `mochegri-3` | `eth0` | `host-mochegri-2` | `eth0` | Bridge `br0` (Overlay `20.1.1.2`) |
+| **Leaf 3** | `mochegri-4` | `eth0` | `host-mochegri-3` | `eth0` | Bridge `br0` (Overlay `20.1.1.3`) |
 
-### 5.2 Spine / Route Reflector Configuration: `_mchegri-1`
+### 5.2 Spine / Route Reflector Configuration: `_mochegri-1`
 
-File: [P3/_mchegri-1](P3/_mchegri-1)
+File: [P3/_mochegri-1](P3/_mochegri-1)
 
 ```sh
 #!/bin/sh
 
 # Router 1 - Spine / Route Reflector (RR)
 # Loopback: 1.1.1.1/32
-# eth0: 10.1.1.1/30 (to Leaf 1 / _mchegri-2)
-# eth1: 10.1.1.5/30 (to Leaf 2 / _mchegri-3)
-# eth2: 10.1.1.9/30 (to Leaf 3 / _mchegri-4)
+# eth0: 10.1.1.1/30 (to Leaf 1 / _mochegri-2)
+# eth1: 10.1.1.5/30 (to Leaf 2 / _mochegri-3)
+# eth2: 10.1.1.9/30 (to Leaf 3 / _mochegri-4)
 
 # Enable IPv4 packet forwarding for underlay transit between leaves
 sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
@@ -728,18 +728,18 @@ EOF
 - **Dynamic Leaf Peering**: `bgp listen range 1.1.1.0/29 peer-group ibgp` dynamically establishes iBGP sessions with any connecting leaf whose source IP is in range `1.1.1.0` through `1.1.1.7`.
 - **Pure Control Plane**: The spine has **no** VXLAN interfaces and **no** bridges; it only reflects BGP EVPN routes and routes underlay IP packets.
 
-### 5.3 Leaf / VTEP Configurations: `_mchegri-2`, `_mchegri-3`, `_mchegri-4`
+### 5.3 Leaf / VTEP Configurations: `_mochegri-2`, `_mochegri-3`, `_mochegri-4`
 
-Files: [P3/_mchegri-2](P3/_mchegri-2), [P3/_mchegri-3](P3/_mchegri-3), [P3/_mchegri-4](P3/_mchegri-4)
+Files: [P3/_mochegri-2](P3/_mochegri-2), [P3/_mochegri-3](P3/_mochegri-3), [P3/_mochegri-4](P3/_mochegri-4)
 
-Example for **Leaf 1** (`_mchegri-2`):
+Example for **Leaf 1** (`_mochegri-2`):
 ```sh
 #!/bin/sh
 
 # Router 2 - Leaf 1 / VTEP
 # Loopback: 1.1.1.2/32
-# eth0: 10.1.1.2/30 (to Spine / _mchegri-1)
-# eth1: connected to host-mchegri-1
+# eth0: 10.1.1.2/30 (to Spine / _mochegri-1)
+# eth1: connected to host-mochegri-1
 
 # Clean up any existing vxlan/bridge if re-running
 ip link del dev vxlan10 2>/dev/null || true
@@ -791,7 +791,7 @@ EOF
 
 ### 5.4 Host Configurations in P3
 
-Files: [P3/_mchegri-1_host](P3/_mchegri-1_host), [P3/_mchegri-2_host](P3/_mchegri-2_host), [P3/_mchegri-3_host](P3/_mchegri-3_host)
+Files: [P3/_mochegri-1_host](P3/_mochegri-1_host), [P3/_mochegri-2_host](P3/_mochegri-2_host), [P3/_mochegri-3_host](P3/_mochegri-3_host)
 
 ```sh
 #!/bin/sh
@@ -856,13 +856,13 @@ Capture on Spine interface `eth0`:
 
 ### 5.8 Testing Procedure & Expected Output
 
-**Step 1: Start only the 4 routers and apply their configs.** Paste `P3/_mchegri-1` to `P3/_mchegri-4` into the consoles of `mchegri-1` to `mchegri-4`, then wait ~30 seconds for OSPF and BGP to converge.
+**Step 1: Start only the 4 routers and apply their configs.** Paste `P3/_mochegri-1` to `P3/_mochegri-4` into the consoles of `mochegri-1` to `mochegri-4`, then wait ~30 seconds for OSPF and BGP to converge.
 ```sh
-# On any leaf (e.g. _mchegri-4): all loopbacks learned via OSPF
+# On any leaf (e.g. _mochegri-4): all loopbacks learned via OSPF
 vtysh -c 'show ip route'
 # O>* 1.1.1.1/32, 1.1.1.2/32, 1.1.1.3/32 via 10.1.1.9, eth2
 
-# On the spine (_mchegri-1): 3 dynamic EVPN sessions
+# On the spine (_mochegri-1): 3 dynamic EVPN sessions
 vtysh -c 'show bgp l2vpn evpn summary'
 # neighbors 1.1.1.2, 1.1.1.3, 1.1.1.4 marked with * (dynamic)
 
@@ -871,13 +871,13 @@ vtysh -c 'show bgp l2vpn evpn'
 # [3]:[0]:[32]:[1.1.1.X] only
 ```
 
-**Step 2: Start the hosts and watch Type 2 routes appear.** Run `_mchegri-1_host` on Host 1:
+**Step 2: Start the hosts and watch Type 2 routes appear.** Run `_mochegri-1_host` on Host 1:
 ```sh
-# On Leaf 1 (_mchegri-2) and Leaf 3 (_mchegri-4)
+# On Leaf 1 (_mochegri-2) and Leaf 3 (_mochegri-4)
 vtysh -c 'show bgp l2vpn evpn'
 # a new [2]:[0]:[48]:[<host1-mac>] route appears
 ```
-Then run `_mchegri-2_host` on Host 2 and `_mchegri-3_host` on Host 3.
+Then run `_mochegri-2_host` on Host 2 and `_mochegri-3_host` on Host 3.
 
 **Step 3: End-to-end connectivity.** From Host 1:
 ```sh
@@ -948,7 +948,7 @@ GNS3 has two parts: the **GUI** (`gns3`, the window you click in) and the **serv
 5. **Build the project images** (§3.3) and check they exist:
    ```sh
    sh P1/build.sh
-   docker images | grep mchegri     # host_mchegri and routeur_mchegri
+   docker images | grep mochegri     # host_mochegri and routeur_mochegri
    ```
 
 ### 6.2 First Launch & Setup Wizard
@@ -986,8 +986,8 @@ A *template* is a reusable device model: "a container made from image X, with N 
 2. In the left column of the Preferences window, click **Docker containers** (under *Docker*).
 3. Click **New** (bottom of the window).
 4. **Server type** page: select **Run this Docker container on my local computer**, then click **Next**.
-5. **Docker Virtual Machine** page: select **Existing image**. In the **Image list** drop-down, choose **`host_mchegri:latest`**, then click **Next**.
-6. **Container name** page: type **`host_mchegri`**, then click **Next**.
+5. **Docker Virtual Machine** page: select **Existing image**. In the **Image list** drop-down, choose **`host_mochegri:latest`**, then click **Next**.
+6. **Container name** page: type **`host_mochegri`**, then click **Next**.
 7. **Network adapters** page: set **Adapters** to **`2`** (creates `eth0` and `eth1`), then click **Next**.
 8. **Start command** page: leave it **empty** so the image's own command is used, then click **Next**.
 9. **Console type** page: choose **`telnet`**, then click **Next**.
@@ -997,8 +997,8 @@ A *template* is a reusable device model: "a container made from image X, with N 
 
 | Page | Value |
 | :--- | :--- |
-| Image list | `routeur_mchegri:latest` |
-| Container name | `routeur_mchegri` |
+| Image list | `routeur_mochegri:latest` |
+| Container name | `routeur_mochegri` |
 | Adapters | **`4`** (`eth0` to `eth3`, needed by the P3 spine) |
 | Start command | *(empty)* |
 | Console type | `telnet` |
@@ -1006,14 +1006,14 @@ A *template* is a reusable device model: "a container made from image X, with N 
 
 Finally, click **Apply**, then **OK** to close Preferences.
 
-**Set the default node names (required with GNS3 3.x).** GNS3 3.x only accepts letters, digits and hyphens (`-`) in Docker node names: underscores are refused with `'host_mchegri-1' is an invalid name to create a Docker node`. A new node is named from its template's **Default name format**, `{name}-{0}` = `host_mchegri-1`, which is refused before you can even rename it. For each template: **Edit > Preferences > Docker containers**, select it, click **Edit**, and in the **General settings** tab set **Default name format** to:
+**Set the default node names (required with GNS3 3.x).** GNS3 3.x only accepts letters, digits and hyphens (`-`) in Docker node names: underscores are refused with `'host_mochegri-1' is an invalid name to create a Docker node`. A new node is named from its template's **Default name format**, `{name}-{0}` = `host_mochegri-1`, which is refused before you can even rename it. For each template: **Edit > Preferences > Docker containers**, select it, click **Edit**, and in the **General settings** tab set **Default name format** to:
 
 | Template | Default name format | Nodes are then called |
 | :--- | :--- | :--- |
-| `host_mchegri` | `host-mchegri-{0}` | `host-mchegri-1`, `host-mchegri-2`, ... |
-| `routeur_mchegri` | `routeur-mchegri-{0}` | `routeur-mchegri-1`, `routeur-mchegri-2`, ... |
+| `host_mochegri` | `host-mochegri-{0}` | `host-mochegri-1`, `host-mochegri-2`, ... |
+| `routeur_mochegri` | `routeur-mochegri-{0}` | `routeur-mochegri-1`, `routeur-mochegri-2`, ... |
 
-Click **OK > Apply > OK**. The template names themselves may keep their underscore; only node names are checked. Every node name still contains the login `mchegri`, as the subject requires.
+Click **OK > Apply > OK**. The template names themselves may keep their underscore; only node names are checked. Every node name still contains the login `mochegri`, as the subject requires.
 
 > **Fixing a template afterwards** (e.g. adapters left at `1`): go to **Edit > Preferences > Docker containers**, select the template in the list, click **Edit**, open the **General settings** tab, change **Adapters**, then click **OK > Apply > OK**. Nodes already placed in a project keep their old value: delete them and drag them in again.
 
@@ -1021,9 +1021,9 @@ Click **OK > Apply > OK**. The template names themselves may keep their undersco
 
 1. **Create the project:** click **File > New blank project**. In **Name**, type **`P1`**, keep the default location, and click **OK**.
 2. **Show the devices:** in the left toolbar, click the **Browse all devices** icon (the last icon of the vertical toolbar). Docker templates use the *guest* category, so they also appear under **Browse End Devices**.
-3. **Place the host:** drag **host_mchegri** from the panel onto the white workspace. GNS3 names it **`host-mchegri-1`** automatically (default name format, §6.3).
-4. **Place the router:** drag **routeur_mchegri** onto the workspace, next to the host. It is named `routeur-mchegri-1`.
-5. **Rename the router** to `routeur-mchegri` (single router in P1): right-click it, click **Change hostname**, type the name, and click **OK**. Names must not contain `_` (§6.3).
+3. **Place the host:** drag **host_mochegri** from the panel onto the white workspace. GNS3 names it **`host-mochegri-1`** automatically (default name format, §6.3).
+4. **Place the router:** drag **routeur_mochegri** onto the workspace, next to the host. It is named `routeur-mochegri-1`.
+5. **Rename the router** to `routeur-mochegri` (single router in P1): right-click it, click **Change hostname**, type the name, and click **OK**. Names must not contain `_` (§6.3).
 6. **Draw the cable:**
    - In the left toolbar, click **Add a link** (the cable icon at the bottom). The cursor becomes a cross.
    - Click the **host**. A list of its ports appears; click **`eth0`**.
@@ -1039,14 +1039,14 @@ Open a console on each node: **right-click the node > Console**, or **double-cli
 > [!WARNING]
 > In a console, **Ctrl+C means "stop the running program"**, not "copy". Use **Ctrl+Shift+C** to copy (§6.2 step 6). The router image keeps FRR detached from the console (§3.2), so a stray Ctrl+C no longer stops the router.
 
-**On `routeur-mchegri`:**
+**On `routeur-mochegri`:**
 ```sh
 vtysh -c 'show daemons'   # must list: zebra bgpd ospfd isisd (+ mgmtd staticd watchfrr)
 ps                        # the FRR daemons are running
 ip addr                   # lo = 127.0.0.1 only; eth0..eth3 have NO IP address
 ```
 
-**On `host-mchegri-1`:**
+**On `host-mochegri-1`:**
 ```sh
 which busybox ip ifconfig ping    # all four are found
 ip addr                           # lo = 127.0.0.1 only; eth0 and eth1 have NO IP address
@@ -1059,10 +1059,10 @@ To stop: click the red **■ Stop all nodes** button in the top toolbar.
 ### 6.6 Building the P2 & P3 Topologies
 
 1. Create one new blank project per part (**File > New blank project**: `P2`, `P3`), exactly as in §6.4.
-2. Drag devices onto the workspace and **rename them using the login `mchegri`**:
-   - P1: `host-mchegri-1`, `routeur-mchegri`
-   - P2: `host-mchegri-1`, `routeur-mchegri-1`, `Switch_mchegri`, `routeur-mchegri-2`, `host-mchegri-2`. The switch is the built-in **Ethernet switch** from **Browse Switches**.
-   - P3: `mchegri-1` (spine), `mchegri-2/3/4` (leaves), `host-mchegri-1/2/3`. Router names come from the subject's `_wil-1` style without the leading `_`, which GNS3 refuses; node `mchegri-N` is configured with the script `P3/_mchegri-N`.
+2. Drag devices onto the workspace and **rename them using the login `mochegri`**:
+   - P1: `host-mochegri-1`, `routeur-mochegri`
+   - P2: `host-mochegri-1`, `routeur-mochegri-1`, `Switch_mochegri`, `routeur-mochegri-2`, `host-mochegri-2`. The switch is the built-in **Ethernet switch** from **Browse Switches**.
+   - P3: `mochegri-1` (spine), `mochegri-2/3/4` (leaves), `host-mochegri-1/2/3`. Router names come from the subject's `_wil-1` style without the leading `_`, which GNS3 refuses; node `mochegri-N` is configured with the script `P3/_mochegri-N`.
 3. Wire links strictly according to the cabling tables (see §4.1 for P2 and §5.1 for P3). With **Add a link**, pick the exact `ethX` port listed in the table each time.
 4. Start all nodes (**▶ Start/Resume all nodes**).
 
@@ -1078,7 +1078,7 @@ To stop: click the red **■ Stop all nodes** button in the top toolbar.
 **From a terminal (faster when testing):**
 ```sh
 docker ps --format '{{.Names}}'                           # GNS3.<node-name>.<project-id>
-docker cp P3/_mchegri-1 <container-name>:/tmp/conf.sh
+docker cp P3/_mochegri-1 <container-name>:/tmp/conf.sh
 docker exec <container-name> sh /tmp/conf.sh
 ```
 
@@ -1171,7 +1171,7 @@ arp                                     # Filter ARP resolution requests and rep
 | Double-click on a node opens nothing | Console program missing | `which xterm telnet` | `sudo apt install xterm telnet`, or change **Edit > Preferences > General > Console applications**. |
 | Starting a node: `No busybox executable could be found` | `busybox-static` missing on the GNS3 machine | `file $(which busybox)` must say *statically linked* | `sudo apt install -y busybox-static` (§6.1). |
 | Adding the switch: `Could not find Dynamips` | Dynamips not installed (needed by the built-in Ethernet switch) | `which dynamips` | Install or build Dynamips (§6.1 step 3b). |
-| Adding a node: `'host_mchegri-1' is an invalid name to create a Docker node` | GNS3 3.x refuses `_` in Docker node names | node name | Set the template's **Default name format** to `host-mchegri-{0}` / `routeur-mchegri-{0}` (§6.3). |
+| Adding a node: `'host_mochegri-1' is an invalid name to create a Docker node` | GNS3 3.x refuses `_` in Docker node names | node name | Set the template's **Default name format** to `host-mochegri-{0}` / `routeur-mochegri-{0}` (§6.3). |
 | Console shows white dots / unreadable text | xterm's default bitmap font on a HiDPI screen | | Create `~/.Xresources` and run `xrdb -merge ~/.Xresources` (§6.2 step 6). |
 | Router console only shows `WATCHFRR` logs, no `#` prompt; Ctrl+C stops the router | Router image built before the `CMD` fix of §3.2 | `docker exec <c> ps` (PID after `tini` must be `sh`) | `sh P1/build.sh`, then stop and start the nodes. |
 | `RTNETLINK answers: File exists` | Script run multiple times without prior teardown | `ip link show` | Scripts now include `ip link del dev vxlan10` and `ip addr replace`. If manual, run `ip link del dev vxlan10; ip link del dev br0`. |
@@ -1181,7 +1181,7 @@ arp                                     # Filter ARP resolution requests and rep
 | **P3: OSPF Neighbor Stuck** | Subnet mismatch on `/30` point-to-point link or swapped cabling | `vtysh -c 'show ip ospf neighbor'` | Verify link IPs match: Spine `eth0` (`10.1.1.1`) <-> Leaf 1 `eth0` (`10.1.1.2`). |
 | **P3: BGP in Active / Connect** | Underlay OSPF route to loopback missing | `vtysh -c 'show ip route 1.1.1.1'` | Wait ~30s for OSPF to converge. Test underlay reachability with `ping -I 1.1.1.2 1.1.1.1`. |
 | **P3: 0 EVPN Routes Visible** | `advertise-all-vni` missing on leaf or EVPN family not activated | `vtysh -c 'show running-config'` | Verify `address-family l2vpn evpn` contains `advertise-all-vni` on leaves and `activate` on RR. |
-| **P3: Underlay Ping OK, Overlay Ping Fails** | Spine not forwarding transit packets | `sysctl net.ipv4.ip_forward` on spine | Run `sysctl -w net.ipv4.ip_forward=1` and set `ip forwarding` inside vtysh on `_mchegri-1`. |
+| **P3: Underlay Ping OK, Overlay Ping Fails** | Spine not forwarding transit packets | `sysctl net.ipv4.ip_forward` on spine | Run `sysctl -w net.ipv4.ip_forward=1` and set `ip forwarding` inside vtysh on `_mochegri-1`. |
 | **P3: Type 3 OK, No Type 2 Routes** | Host container inactive or local port down | `brctl showmacs br0` on leaf | Start the host container; bridge must receive at least one packet from the host to generate Type 2 route. |
 
 ---
@@ -1194,22 +1194,22 @@ arp                                     # Filter ARP resolution requests and rep
    - Run `find -maxdepth 2 -ls` from the repository root to verify folder structure.
    - Run `file P*/P*.gns3project` to prove exported portable archives are valid ZIP files.
 2. **Part 1 Demo**:
-   - Open [P1/_mchegri-1_host](P1/_mchegri-1_host) and [P1/_mchegri-2](P1/_mchegri-2), explaining each line.
+   - Open [P1/_mochegri-1_host](P1/_mochegri-1_host) and [P1/_mochegri-2](P1/_mochegri-2), explaining each line.
    - Start the P1 topology in GNS3.
    - Inside the router console, run `vtysh -c 'show daemons'` (shows `zebra`, `ospfd`, `bgpd`, `isisd`).
    - Run `ip addr` to prove zero IP addresses exist by default.
 3. **Part 2 Static Demo**:
-   - Apply `_mchegri-1_s`, `_mchegri-2_s`, and host scripts.
+   - Apply `_mochegri-1_s`, `_mochegri-2_s`, and host scripts.
    - Run `ip -d link show vxlan10` showing `remote 10.1.1.X` and `dstport 4789`.
    - Ping from Host 1 (`30.1.1.1`) to Host 2 (`30.1.1.2`).
    - Show Wireshark capture of UDP 4789 encapsulated ICMP packets.
 4. **Part 2 Multicast Demo**:
-   - Apply `_mchegri-1_g` and `_mchegri-2_g`.
+   - Apply `_mochegri-1_g` and `_mochegri-2_g`.
    - Run `ip -d link show vxlan10` showing `group 239.1.1.1`.
    - Ping again and inspect `brctl showmacs br0`.
    - Show initial ARP broadcast sent to `239.1.1.1` in Wireshark.
 5. **Part 3 EVPN Demo**:
-   - Paste the router scripts `P3/_mchegri-1` through `P3/_mchegri-4` into `mchegri-1` through `mchegri-4`.
+   - Paste the router scripts `P3/_mochegri-1` through `P3/_mochegri-4` into `mochegri-1` through `mochegri-4`.
    - Run `vtysh -c 'show ip route'` on Leaf 3 showing loopbacks learned via OSPF.
    - On the Spine, run `vtysh -c 'show bgp l2vpn evpn summary'` showing 3 dynamic `*` leaf sessions.
    - Run `vtysh -c 'show bgp l2vpn evpn'` showing **only Type 3 routes** initially.

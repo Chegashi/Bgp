@@ -2,7 +2,7 @@
 
 # Router 2 - VXLAN Static Unicast Configuration
 # Underlay: eth0 (10.1.1.2/24) connected to Switch
-# Overlay: eth1 connected to host-mchegri-2
+# Overlay: eth1 connected to host-mochegri-2
 
 # Clean up existing interfaces if re-running or switching modes
 ip link del dev vxlan10 2>/dev/null || true

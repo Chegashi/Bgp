@@ -1,12 +1,12 @@
 #!/bin/sh
 
-# Host 3 Configuration (P3)
-# Connected to Leaf 3 (_mchegri-4)
+# Host 2 Configuration (P3)
+# Connected to Leaf 2 (_mochegri-3)
 # Uses eth0 as shown in the subject diagram, falls back to eth1 if cabled there
 
 IFACE="eth0"
 [ -d "/sys/class/net/eth0" ] || IFACE="eth1"
 
-ip addr replace 20.1.1.3/24 dev "$IFACE"
+ip addr replace 20.1.1.2/24 dev "$IFACE"
 ip link set dev "$IFACE" up
 
