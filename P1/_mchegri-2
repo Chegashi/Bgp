@@ -16,6 +16,8 @@ RUN sed -i -e 's/^bgpd=no/bgpd=yes/' \
  && touch /etc/frr/vtysh.conf
 
 # No IP address is configured by default.
-# The inherited entrypoint (/sbin/tini -- /usr/lib/frr/docker-start) keeps
-# watchfrr in the foreground, which starts and supervises zebra + the daemons,
-# so the container stays alive in GNS3.
+# docker-start launches watchfrr, which starts and supervises zebra + the daemons.
+# It runs in the background (logs in /var/log/frr-start.log) so that the GNS3
+# console gets an interactive shell, where the configuration scripts are pasted.
+# setsid detaches FRR from the console, so Ctrl+C in the shell cannot stop it.
+CMD ["sh", "-c", "setsid /usr/lib/frr/docker-start > /var/log/frr-start.log 2>&1 & exec sh"]

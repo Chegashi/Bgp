@@ -3,7 +3,7 @@
 # Router 2 - Leaf 1 / VTEP
 # Loopback: 1.1.1.2/32
 # eth0: 10.1.1.2/30 (to Spine / _mchegri-1)
-# eth1: connected to host_mchegri-1
+# eth1: connected to host-mchegri-1
 
 # Clean up any existing vxlan/bridge if re-running
 ip link del dev vxlan10 2>/dev/null || true

@@ -189,14 +189,16 @@ bgp/
 ├── P1/
 │   ├── _mchegri-1_host     # Dockerfile: Host image (Alpine + BusyBox + iproute2 + ping)
 │   ├── _mchegri-2          # Dockerfile: Router image (FRRouting 9.1.3 + daemons + tcpdump)
-│   └── build.sh            # Build script tagging host_mchegri and routeur_mchegri
+│   ├── build.sh            # Build script tagging host_mchegri and routeur_mchegri
+│   └── P1.gns3project      # GNS3 portable project export (zip)
 ├── P2/
 │   ├── _mchegri-1_s        # Router 1: VXLAN static unicast configuration script
 │   ├── _mchegri-2_s        # Router 2: VXLAN static unicast configuration script
 │   ├── _mchegri-1_g        # Router 1: VXLAN multicast group configuration script
 │   ├── _mchegri-2_g        # Router 2: VXLAN multicast group configuration script
 │   ├── _mchegri-1_host     # Host 1: IP configuration script (30.1.1.1/24)
-│   └── _mchegri-2_host     # Host 2: IP configuration script (30.1.1.2/24)
+│   ├── _mchegri-2_host     # Host 2: IP configuration script (30.1.1.2/24)
+│   └── P2.gns3project      # GNS3 portable project export (zip)
 └── P3/
     ├── _mchegri-1          # Spine Router: OSPF Area 0 + BGP Route Reflector for EVPN
     ├── _mchegri-2          # Leaf 1 Router: VTEP (lo: 1.1.1.2) + OSPF + iBGP EVPN
@@ -204,7 +206,8 @@ bgp/
     ├── _mchegri-4          # Leaf 3 Router: VTEP (lo: 1.1.1.4) + OSPF + iBGP EVPN
     ├── _mchegri-1_host     # Host 1: IP configuration script (20.1.1.1/24)
     ├── _mchegri-2_host     # Host 2: IP configuration script (20.1.1.2/24)
-    └── _mchegri-3_host     # Host 3: IP configuration script (20.1.1.3/24)
+    ├── _mchegri-3_host     # Host 3: IP configuration script (20.1.1.3/24)
+    └── P3.gns3project      # GNS3 portable project export (zip)
 ```
 
 ### 1.5 Addressing & Network Summary
@@ -372,14 +375,20 @@ RUN sed -i -e 's/^bgpd=no/bgpd=yes/' \
  && touch /etc/frr/vtysh.conf
 
 # No IP address is configured by default.
-# The inherited entrypoint (/sbin/tini -- /usr/lib/frr/docker-start) keeps
-# watchfrr in the foreground, which starts and supervises zebra + the daemons,
-# so the container stays alive in GNS3.
+# docker-start launches watchfrr, which starts and supervises zebra + the daemons.
+# It runs in the background (logs in /var/log/frr-start.log) so that the GNS3
+# console gets an interactive shell, where the configuration scripts are pasted.
+# setsid detaches FRR from the console, so Ctrl+C in the shell cannot stop it.
+CMD ["sh", "-c", "setsid /usr/lib/frr/docker-start > /var/log/frr-start.log 2>&1 & exec sh"]
 ```
 
 - **Base**: `quay.io/frrouting/frr:9.1.3` is the official upstream release.
 - **Daemons**: Modifying `/etc/frr/daemons` instructs `watchfrr` to launch `zebra`, `bgpd`, `ospfd`, and `isisd` concurrently on container boot.
 - **Diagnostics**: `tcpdump` is installed so network packets can be inspected directly inside router consoles.
+- **Console = shell (`CMD`)**: when you double-click a node, GNS3 connects you to the container's main program. In the official FRR image that program is `docker-start`, which only prints FRR logs: there is no prompt to type in, and Ctrl+C kills it, which stops the whole router. The `CMD` line fixes this:
+  - `setsid /usr/lib/frr/docker-start ... &` starts FRR **in the background**, in its own **session** (a group of processes attached to one terminal). Because FRR is detached from the console, a Ctrl+C typed there cannot reach it.
+  - `> /var/log/frr-start.log 2>&1` sends FRR's start-up messages to a file instead of the console.
+  - `exec sh` replaces the starting shell with an **interactive shell** (`#` prompt), which becomes the console. This is where the configuration scripts are pasted.
 - **Subject Constraint**: No default IP addresses are configured.
 
 #### Packet Routing Software: zebra, Quagga & FRR
@@ -442,7 +451,7 @@ It builds and tags the two local images used by every GNS3 template: `host_mcheg
 
 ### 3.4 GNS3 Verification
 
-Connect `host_mchegri-1` to `routeur_mchegri` in GNS3. Open the router terminal and run:
+Connect `host-mchegri-1` to `routeur-mchegri` in GNS3. Open the router terminal and run:
 
 ```sh
 # 1. Verify all required daemons are running
@@ -463,7 +472,7 @@ ip addr
 In Part 2, two hosts on subnet `30.1.1.0/24` communicate across a Layer 3 underlay (`10.1.1.0/24`) using a VXLAN tunnel (`vxlan10`) bound to a Linux bridge (`br0`).
 
 ```text
-host_mchegri-1                   routeur_mchegri-1        Switch_mchegri        routeur_mchegri-2                   host_mchegri-2
+host-mchegri-1                   routeur-mchegri-1        Switch_mchegri        routeur-mchegri-2                   host-mchegri-2
 ┌──────────────────────┐        ┌──────────────────┐    ┌─────────────────┐    ┌──────────────────┐        ┌──────────────────────┐
 │ IP: 30.1.1.1/24      │        │ br0 (eth1+vxlan) │    │  Standard GNS3  │    │ br0 (eth1+vxlan) │        │ IP: 30.1.1.2/24      │
 │ Port: eth1 or eth0   ├────────┤ eth1        eth0 ├────┤ e0           e1 ├────┤ eth0        eth1 ├────────┤ Port: eth1 or eth0   │
@@ -580,7 +589,7 @@ Step 6: Host 2 receives ARP Request and replies with unicast ARP Reply.
 
 ### 4.7 Wireshark Capture Analysis
 
-Start Wireshark on the link between `routeur_mchegri-1` and `Switch_mchegri`:
+Start Wireshark on the link between `routeur-mchegri-1` and `Switch_mchegri`:
 - Filter: `udp.port == 4789` or `vxlan`
 - In static mode (`_s`), you will observe outer IP packets addressed from `10.1.1.1` to `10.1.1.2`.
 - In dynamic multicast mode (`_g`), you will observe the initial ARP request addressed to `239.1.1.1`, followed by unicast ICMP packets (`10.1.1.1` <-> `10.1.1.2`).
@@ -629,7 +638,7 @@ Part 3 implements a modern two-tier Clos data center fabric:
           │ br0 = eth1+vxlan10 │   │ br0 = eth0+vxlan10 │ │ br0 = eth0+vxlan10 │
           └─────────┬──────────┘   └─────────┬──────────┘ └─────────┬──────────┘
                   eth1                      eth0                   eth0
-          host_mchegri-1             host_mchegri-2          host_mchegri-3
+          host-mchegri-1             host-mchegri-2          host-mchegri-3
            20.1.1.1/24                20.1.1.2/24             20.1.1.3/24
 ```
 
@@ -643,16 +652,16 @@ The fabric has three layers:
 
 #### Precise Port Cabling Mapping
 
-To match the official subject diagrams precisely, wire the devices as follows:
+To match the official subject diagrams precisely, wire the devices as follows. The GNS3 node `mchegri-N` is configured with the script `P3/_mchegri-N`:
 
 | Device | Node Name | Interface | Connected To Device | Remote Port | Subnet / Role |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Spine** | `_mchegri-1` | `eth0` | `_mchegri-2` (Leaf 1) | `eth0` | `10.1.1.0/30` (`.1` / `.2`) |
-| **Spine** | `_mchegri-1` | `eth1` | `_mchegri-3` (Leaf 2) | `eth1` | `10.1.1.4/30` (`.5` / `.6`) |
-| **Spine** | `_mchegri-1` | `eth2` | `_mchegri-4` (Leaf 3) | `eth2` | `10.1.1.8/30` (`.9` / `.10`) |
-| **Leaf 1** | `_mchegri-2` | `eth1` | `host_mchegri-1` | `eth1` (or `eth0`) | Bridge `br0` (Overlay `20.1.1.1`) |
-| **Leaf 2** | `_mchegri-3` | `eth0` | `host_mchegri-2` | `eth0` | Bridge `br0` (Overlay `20.1.1.2`) |
-| **Leaf 3** | `_mchegri-4` | `eth0` | `host_mchegri-3` | `eth0` | Bridge `br0` (Overlay `20.1.1.3`) |
+| **Spine** | `mchegri-1` | `eth0` | `mchegri-2` (Leaf 1) | `eth0` | `10.1.1.0/30` (`.1` / `.2`) |
+| **Spine** | `mchegri-1` | `eth1` | `mchegri-3` (Leaf 2) | `eth1` | `10.1.1.4/30` (`.5` / `.6`) |
+| **Spine** | `mchegri-1` | `eth2` | `mchegri-4` (Leaf 3) | `eth2` | `10.1.1.8/30` (`.9` / `.10`) |
+| **Leaf 1** | `mchegri-2` | `eth1` | `host-mchegri-1` | `eth1` (or `eth0`) | Bridge `br0` (Overlay `20.1.1.1`) |
+| **Leaf 2** | `mchegri-3` | `eth0` | `host-mchegri-2` | `eth0` | Bridge `br0` (Overlay `20.1.1.2`) |
+| **Leaf 3** | `mchegri-4` | `eth0` | `host-mchegri-3` | `eth0` | Bridge `br0` (Overlay `20.1.1.3`) |
 
 ### 5.2 Spine / Route Reflector Configuration: `_mchegri-1`
 
@@ -730,7 +739,7 @@ Example for **Leaf 1** (`_mchegri-2`):
 # Router 2 - Leaf 1 / VTEP
 # Loopback: 1.1.1.2/32
 # eth0: 10.1.1.2/30 (to Spine / _mchegri-1)
-# eth1: connected to host_mchegri-1
+# eth1: connected to host-mchegri-1
 
 # Clean up any existing vxlan/bridge if re-running
 ip link del dev vxlan10 2>/dev/null || true
@@ -847,7 +856,7 @@ Capture on Spine interface `eth0`:
 
 ### 5.8 Testing Procedure & Expected Output
 
-**Step 1: Start the routers and apply their configs.** Run `_mchegri-1` to `_mchegri-4` in their consoles, then wait ~30 seconds for OSPF and BGP to converge.
+**Step 1: Start only the 4 routers and apply their configs.** Paste `P3/_mchegri-1` to `P3/_mchegri-4` into the consoles of `mchegri-1` to `mchegri-4`, then wait ~30 seconds for OSPF and BGP to converge.
 ```sh
 # On any leaf (e.g. _mchegri-4): all loopbacks learned via OSPF
 vtysh -c 'show ip route'
@@ -890,8 +899,10 @@ GNS3 has two parts: the **GUI** (`gns3`, the window you click in) and the **serv
 1. **Install pipx and build tools** (to compile `ubridge` later):
    ```sh
    sudo apt update
-   sudo apt install -y pipx git build-essential libpcap-dev telnet xterm
+   sudo apt install -y pipx git build-essential cmake libpcap-dev libelf-dev telnet xterm busybox-static
    ```
+   - `busybox-static`: GNS3 copies this BusyBox binary into every Docker node when it starts it. Without it, starting a node fails with `No busybox executable could be found`.
+   - `cmake` and `libelf-dev`: needed to build Dynamips (step 3b).
    > Install the apt packages in **one command that only lists packages that exist**. If a single name is unknown (e.g. `ubridge`, `python3-pyqt5.qtwebsockets`), apt aborts and installs **nothing**.
 
 2. **Install the GNS3 server and GUI:**
@@ -912,6 +923,16 @@ GNS3 has two parts: the **GUI** (`gns3`, the window you click in) and the **serv
    sudo make install          # installs /usr/local/bin/ubridge and sets its network capabilities
    which ubridge              # -> /usr/local/bin/ubridge
    ```
+
+3b. **Build and install `dynamips`.** Dynamips is an emulator of Cisco routers, but GNS3 also uses it to run its built-in **Ethernet switch**, which P2 needs. Without it, adding the switch fails with `Could not find Dynamips`. Try `sudo apt install -y dynamips` first; if the package does not exist, build it (no `sudo` needed, it installs into `~/.local/bin`, which `pipx ensurepath` already put in your `PATH`):
+   ```sh
+   git clone --depth 1 --branch v0.2.23 https://github.com/GNS3/dynamips.git /tmp/dynamips
+   mkdir /tmp/dynamips/build && cd /tmp/dynamips/build
+   cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX=$HOME/.local -DDYNAMIPS_CODE=stable
+   make && make install
+   which dynamips             # -> ~/.local/bin/dynamips
+   ```
+   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` is needed with recent CMake (4.x), which refuses the old minimum version written in Dynamips' build file.
 
 4. **Allow your user to use Docker without `sudo`.** GNS3 runs as your user, so it needs this. Otherwise the Docker page shows `Cannot connect to unix socket /var/run/docker.sock [Permission denied]`.
    ```sh
@@ -943,6 +964,17 @@ GNS3 has two parts: the **GUI** (`gns3`, the window you click in) and the **serv
 3. If GNS3 asks you to log in (GNS3 3.x controller), use the default account **`admin`** / **`admin`**.
 4. A **Project** dialog may open. Click **Cancel** for now; the project is created in §6.4.
 5. **Check the console program.** Go to **Edit > Preferences > General**, open the **Console applications** tab, and make sure the telnet command uses a terminal you have installed. The default `xterm -T "{name}" -e "telnet {host} {port}"` works once `xterm` and `telnet` are installed (step 6.1.1). Click **OK**.
+6. **Make the console readable and easy to paste into.** By default xterm uses a tiny bitmap font, which looks like white dots on a high-resolution screen, and its paste key is not Ctrl+V. Create `~/.Xresources` (xterm's settings file) with:
+   ```
+   XTerm*faceName: DejaVu Sans Mono
+   XTerm*faceSize: 14
+   XTerm*background: black
+   XTerm*foreground: white
+   XTerm*VT100.Translations: #override \
+       Ctrl Shift <Key>C: copy-selection(CLIPBOARD) \n\
+       Ctrl Shift <Key>V: insert-selection(CLIPBOARD)
+   ```
+   Load it with `xrdb -merge ~/.Xresources` (Kali also loads it at every login). New consoles now use a size-14 font, **Ctrl+Shift+V** pastes and **Ctrl+Shift+C** copies. No GNS3 restart is needed.
 
 ### 6.3 Creating the Docker Templates
 
@@ -974,17 +1006,24 @@ A *template* is a reusable device model: "a container made from image X, with N 
 
 Finally, click **Apply**, then **OK** to close Preferences.
 
+**Set the default node names (required with GNS3 3.x).** GNS3 3.x only accepts letters, digits and hyphens (`-`) in Docker node names: underscores are refused with `'host_mchegri-1' is an invalid name to create a Docker node`. A new node is named from its template's **Default name format**, `{name}-{0}` = `host_mchegri-1`, which is refused before you can even rename it. For each template: **Edit > Preferences > Docker containers**, select it, click **Edit**, and in the **General settings** tab set **Default name format** to:
+
+| Template | Default name format | Nodes are then called |
+| :--- | :--- | :--- |
+| `host_mchegri` | `host-mchegri-{0}` | `host-mchegri-1`, `host-mchegri-2`, ... |
+| `routeur_mchegri` | `routeur-mchegri-{0}` | `routeur-mchegri-1`, `routeur-mchegri-2`, ... |
+
+Click **OK > Apply > OK**. The template names themselves may keep their underscore; only node names are checked. Every node name still contains the login `mchegri`, as the subject requires.
+
 > **Fixing a template afterwards** (e.g. adapters left at `1`): go to **Edit > Preferences > Docker containers**, select the template in the list, click **Edit**, open the **General settings** tab, change **Adapters**, then click **OK > Apply > OK**. Nodes already placed in a project keep their old value: delete them and drag them in again.
 
 ### 6.4 Building the P1 Topology
 
 1. **Create the project:** click **File > New blank project**. In **Name**, type **`P1`**, keep the default location, and click **OK**.
 2. **Show the devices:** in the left toolbar, click the **Browse all devices** icon (the last icon of the vertical toolbar). Docker templates use the *guest* category, so they also appear under **Browse End Devices**.
-3. **Place the host:** drag **host_mchegri** from the panel onto the white workspace. GNS3 names it **`host_mchegri-1`** automatically (`{name}-{0}` format).
-4. **Place the router:** drag **routeur_mchegri** onto the workspace, next to the host. It is named `routeur_mchegri-1`.
-5. **Rename the nodes** (the subject requires the login in every name): right-click a node, click **Change hostname**, type the name, and click **OK**.
-   - Host: `host_mchegri-1`
-   - Router: `routeur_mchegri`
+3. **Place the host:** drag **host_mchegri** from the panel onto the white workspace. GNS3 names it **`host-mchegri-1`** automatically (default name format, §6.3).
+4. **Place the router:** drag **routeur_mchegri** onto the workspace, next to the host. It is named `routeur-mchegri-1`.
+5. **Rename the router** to `routeur-mchegri` (single router in P1): right-click it, click **Change hostname**, type the name, and click **OK**. Names must not contain `_` (§6.3).
 6. **Draw the cable:**
    - In the left toolbar, click **Add a link** (the cable icon at the bottom). The cursor becomes a cross.
    - Click the **host**. A list of its ports appears; click **`eth0`**.
@@ -995,16 +1034,19 @@ Finally, click **Apply**, then **OK** to close Preferences.
 
 ### 6.5 Verifying P1
 
-Open a console on each node: **right-click the node > Console**, or **double-click** it. An `xterm` window opens with a shell inside the container.
+Open a console on each node: **right-click the node > Console**, or **double-click** it. An `xterm` window opens with a shell inside the container; press **Enter** to get the `#` prompt.
 
-**On `routeur_mchegri`:**
+> [!WARNING]
+> In a console, **Ctrl+C means "stop the running program"**, not "copy". Use **Ctrl+Shift+C** to copy (§6.2 step 6). The router image keeps FRR detached from the console (§3.2), so a stray Ctrl+C no longer stops the router.
+
+**On `routeur-mchegri`:**
 ```sh
 vtysh -c 'show daemons'   # must list: zebra bgpd ospfd isisd (+ mgmtd staticd watchfrr)
 ps                        # the FRR daemons are running
 ip addr                   # lo = 127.0.0.1 only; eth0..eth3 have NO IP address
 ```
 
-**On `host_mchegri-1`:**
+**On `host-mchegri-1`:**
 ```sh
 which busybox ip ifconfig ping    # all four are found
 ip addr                           # lo = 127.0.0.1 only; eth0 and eth1 have NO IP address
@@ -1018,22 +1060,29 @@ To stop: click the red **■ Stop all nodes** button in the top toolbar.
 
 1. Create one new blank project per part (**File > New blank project**: `P2`, `P3`), exactly as in §6.4.
 2. Drag devices onto the workspace and **rename them using the login `mchegri`**:
-   - P1: `host_mchegri-1`, `routeur_mchegri`
-   - P2: `host_mchegri-1`, `routeur_mchegri-1`, `Switch_mchegri`, `routeur_mchegri-2`, `host_mchegri-2`. The switch is the built-in **Ethernet switch** from **Browse Switches**.
-   - P3: `_mchegri-1` (spine), `_mchegri-2/3/4` (leaves), `host_mchegri-1/2/3`
+   - P1: `host-mchegri-1`, `routeur-mchegri`
+   - P2: `host-mchegri-1`, `routeur-mchegri-1`, `Switch_mchegri`, `routeur-mchegri-2`, `host-mchegri-2`. The switch is the built-in **Ethernet switch** from **Browse Switches**.
+   - P3: `mchegri-1` (spine), `mchegri-2/3/4` (leaves), `host-mchegri-1/2/3`. Router names come from the subject's `_wil-1` style without the leading `_`, which GNS3 refuses; node `mchegri-N` is configured with the script `P3/_mchegri-N`.
 3. Wire links strictly according to the cabling tables (see §4.1 for P2 and §5.1 for P3). With **Add a link**, pick the exact `ethX` port listed in the table each time.
 4. Start all nodes (**▶ Start/Resume all nodes**).
 
 ### 6.7 Applying Configurations
 
-Double-click each node to open its telnet terminal and paste the script contents, or use Docker CLI from the host terminal:
+**Configurations are not stored in the projects or in the images.** Each time GNS3 starts a project it creates fresh containers from the images, and the images deliberately have no IP configuration (subject requirement). So after every start you apply the scripts again, which is also the live demonstration expected during the evaluation.
 
+**In the GUI (evaluation):**
+1. Double-click the node and press **Enter** to get the `#` prompt.
+2. Open the script in your editor, select everything (**Ctrl+A**) and copy it (**Ctrl+C**).
+3. Click in the console and paste with **Ctrl+Shift+V** (or the middle mouse button). The last line runs when you press **Enter**.
+
+**From a terminal (faster when testing):**
 ```sh
-# Example: copying config script into a running GNS3 container
-docker ps --format '{{.Names}}'
+docker ps --format '{{.Names}}'                           # GNS3.<node-name>.<project-id>
 docker cp P3/_mchegri-1 <container-name>:/tmp/conf.sh
-docker exec -it <container-name> sh /tmp/conf.sh
+docker exec <container-name> sh /tmp/conf.sh
 ```
+
+**P3 order:** start **only the 4 routers** first (select them with Ctrl+click, right-click > **Start**), apply their scripts, and show that only Type 3 EVPN routes exist. Then start the hosts. GNS3 containers have IPv6 enabled, so a running host sends a few IPv6 packets as soon as its link is up: its leaf learns its MAC and a Type 2 route appears, even before its script runs.
 
 ### 6.8 Exporting Portable Projects (`.gns3project`)
 
@@ -1052,6 +1101,9 @@ docker exec -it <container-name> sh /tmp/conf.sh
 
 > [!IMPORTANT]
 > The subject strictly requires these portable archives, exported with **Include base images**, to be present in the git repository.
+
+> [!NOTE]
+> GNS3 never puts **Docker** images inside a `.gns3project` (*Include base images* only applies to VM images such as QEMU or IOS), which is why the files are only a few KB. The archive describes the nodes, templates and cables; the images are rebuilt from the Dockerfiles with `sh P1/build.sh` before importing (**File > Import portable project**).
 
 ---
 
@@ -1117,6 +1169,11 @@ arp                                     # Filter ARP resolution requests and rep
 | GNS3 Docker page: `Cannot connect to unix socket /var/run/docker.sock [Permission denied]` | User not in the `docker` group, or group not applied yet | `getent group docker`, `docker ps` | `sudo usermod -aG docker $USER`, log out/in, restart `gns3` (§6.1 step 4). |
 | `Cannot find device "eth1"` on the host in GNS3 | Host template created with 1 adapter | `ip link` inside node | Edit the template, set **Adapters** to `2` (§6.3), then re-drag the node. |
 | Double-click on a node opens nothing | Console program missing | `which xterm telnet` | `sudo apt install xterm telnet`, or change **Edit > Preferences > General > Console applications**. |
+| Starting a node: `No busybox executable could be found` | `busybox-static` missing on the GNS3 machine | `file $(which busybox)` must say *statically linked* | `sudo apt install -y busybox-static` (§6.1). |
+| Adding the switch: `Could not find Dynamips` | Dynamips not installed (needed by the built-in Ethernet switch) | `which dynamips` | Install or build Dynamips (§6.1 step 3b). |
+| Adding a node: `'host_mchegri-1' is an invalid name to create a Docker node` | GNS3 3.x refuses `_` in Docker node names | node name | Set the template's **Default name format** to `host-mchegri-{0}` / `routeur-mchegri-{0}` (§6.3). |
+| Console shows white dots / unreadable text | xterm's default bitmap font on a HiDPI screen | | Create `~/.Xresources` and run `xrdb -merge ~/.Xresources` (§6.2 step 6). |
+| Router console only shows `WATCHFRR` logs, no `#` prompt; Ctrl+C stops the router | Router image built before the `CMD` fix of §3.2 | `docker exec <c> ps` (PID after `tini` must be `sh`) | `sh P1/build.sh`, then stop and start the nodes. |
 | `RTNETLINK answers: File exists` | Script run multiple times without prior teardown | `ip link show` | Scripts now include `ip link del dev vxlan10` and `ip addr replace`. If manual, run `ip link del dev vxlan10; ip link del dev br0`. |
 | `Cannot find device "eth1"` / `"eth2"` | Router or host template configured with insufficient adapters | `ip link` inside node | Router template requires 4 adapters. Host scripts now auto-detect `eth1` or fall back to `eth0`. |
 | **P2: Ping fails** | Port not enrolled in bridge, interface down, or IP mismatch | `brctl show br0`, `ip link` | Verify `eth1` and `vxlan10` are `master br0`, interfaces are `UP`, and host IPs belong to `30.1.1.0/24`. |
@@ -1152,7 +1209,7 @@ arp                                     # Filter ARP resolution requests and rep
    - Ping again and inspect `brctl showmacs br0`.
    - Show initial ARP broadcast sent to `239.1.1.1` in Wireshark.
 5. **Part 3 EVPN Demo**:
-   - Apply router scripts `_mchegri-1` through `_mchegri-4`.
+   - Paste the router scripts `P3/_mchegri-1` through `P3/_mchegri-4` into `mchegri-1` through `mchegri-4`.
    - Run `vtysh -c 'show ip route'` on Leaf 3 showing loopbacks learned via OSPF.
    - On the Spine, run `vtysh -c 'show bgp l2vpn evpn summary'` showing 3 dynamic `*` leaf sessions.
    - Run `vtysh -c 'show bgp l2vpn evpn'` showing **only Type 3 routes** initially.
@@ -1222,12 +1279,14 @@ Short definitions of every technical term used in this manual, in alphabetical o
 | **AS (Autonomous System)** | A network run by one organization under one routing policy, identified by a number. This project uses AS 1. (§2.2) |
 | **BGP / iBGP / eBGP** | Border Gateway Protocol, the Internet's routing protocol, over TCP 179. iBGP = between routers of the same AS, eBGP = between different ASes. (§2.3) |
 | **Bridge** | A switch implemented in software inside the Linux kernel (`br0`). (§4.2) |
+| **BusyBox** | One small program that provides `sh`, `ls`, `ping` and most basic Unix commands. GNS3 also needs a static copy on the host machine to start Docker nodes. (§3.1, §6.1) |
 | **Broadcast domain** | The set of machines that receive a frame sent to everyone. (§1.1) |
 | **BUM traffic** | Broadcast, Unknown unicast and Multicast frames, which must reach every member of an L2 network. (§2.4) |
 | **Clos / spine-leaf** | Two-layer fabric: every leaf (where hosts connect) is cabled to every spine (core). (§1.3, §5.1) |
 | **Container / image** | A container is an isolated program sharing the host kernel; an image is the read-only template it starts from. (§1.3) |
 | **Control plane / data plane** | Control plane decides where traffic goes (OSPF, BGP); data plane actually moves the packets. (§1.2) |
 | **Daemon** | A program that runs in the background (e.g. `bgpd`, `zebra`). (§1.3) |
+| **Dynamips** | Cisco router emulator; GNS3 uses it to run its built-in Ethernet switch (P2). (§6.1) |
 | **ECMP** | Equal-Cost Multi-Path: traffic is spread over several paths of equal cost. (§1.2) |
 | **Encapsulation** | Wrapping a whole frame or packet inside another one, as its payload. (§1.2, §2.1) |
 | **EVPN** | Ethernet VPN: BGP extension that advertises MAC addresses and VNIs instead of IP routes. (§2.4) |
@@ -1266,6 +1325,7 @@ Short definitions of every technical term used in this manual, in alphabetical o
 | **Quagga** | Older routing suite, predecessor of FRR. (§3.2) |
 | **RFC** | Numbered Internet standard document. (§2.2) |
 | **Route Reflector (RR)** | iBGP router that relays routes between its clients, so they don't need a full mesh. (§2.5) |
+| **Session (process)** | Group of processes attached to one terminal; `setsid` starts a program in a new session so the console's Ctrl+C cannot reach it. (§3.2) |
 | **Split horizon (iBGP)** | Rule that an iBGP router never re-advertises a route learned from another iBGP peer. (§2.3) |
 | **STP** | Spanning Tree Protocol: blocks links to prevent L2 loops. (§1.1) |
 | **Subnet** | A range of IP addresses, e.g. `30.1.1.0/24`. (§1.1) |

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Host 1 Configuration (P2)
-# Underlay: Connected to Router 1 (routeur_mchegri-1)
+# Underlay: Connected to Router 1 (routeur-mchegri-1)
 # Uses eth1 if available (matching the subject diagram), falls back to eth0
 
 IFACE="eth0"
